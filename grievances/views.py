@@ -1,12 +1,11 @@
-from django.http import HttpResponse
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 
 
-def home(request):
-	return HttpResponse("""
-		<h1>Sunaau Nepal</h1>
-		<p>The project is running.</p>
-	""")
+def home_view(request):
+    return render(request, 'grievances/home.html')
 
 
-def favicon(request):
-	return HttpResponse(status=204)
+@login_required
+def municipality_dashboard(request):
+    return render(request, 'grievances/dashboard.html')

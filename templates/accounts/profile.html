@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile — SunaauNepal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h4 class="fw-bold mb-3"><i class="bi bi-person-circle text-primary"></i> My Profile</h4>
+            <table class="table">
+                <tr><th>Username</th><td>{{ user.username }}</td></tr>
+                <tr><th>Email</th><td>{{ user.email }}</td></tr>
+                <tr><th>Phone</th><td>{{ user.phone|default:"Not provided" }}</td></tr>
+                <tr><th>Role</th><td><span class="badge bg-primary">{{ user.get_role_display }}</span></td></tr>
+                <tr><th>Municipality</th><td>{{ user.municipality|default:"Not set" }}</td></tr>
+                <tr><th>Ward</th><td>{{ user.ward_number|default:"Not set" }}</td></tr>
+            </table>
+            <a href="{% url 'home' %}" class="btn btn-outline-primary">
+                <i class="bi bi-house"></i> Back to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

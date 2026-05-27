@@ -147,3 +147,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Custom user model (we'll build this next)
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
