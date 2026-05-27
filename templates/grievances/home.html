@@ -3,39 +3,107 @@
 {% block title %}SunaauNepal — Report Infrastructure Issues{% endblock %}
 
 {% block content %}
+
+<!-- Hero -->
 <div class="p-5 mb-4 rounded-3" style="background: linear-gradient(135deg, #1e40af, #1e3a8a); color: white;">
     <h1 class="fw-bold">Report. Track. Resolve. 🛣️</h1>
     <p class="fs-5 mt-2 mb-4" style="opacity:0.85">
         Report infrastructure issues in your municipality with GPS-tagged photos.
+        Hold local authorities accountable.
     </p>
     {% if user.is_authenticated %}
-        <a href="#" class="btn btn-light btn-lg fw-bold">
+        <a href="#" class="btn btn-light btn-lg fw-bold me-2">
             <i class="bi bi-plus-circle"></i> Report an Issue
         </a>
+        <a href="{% url 'my_reports' %}" class="btn btn-outline-light btn-lg">
+            <i class="bi bi-list-check"></i> My Reports
+        </a>
     {% else %}
-        <a href="{% url 'register' %}" class="btn btn-light btn-lg fw-bold me-2">Get Started</a>
+        <a href="{% url 'register' %}" class="btn btn-light btn-lg fw-bold me-2">
+            <i class="bi bi-person-plus"></i> Get Started
+        </a>
         <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">Login</a>
     {% endif %}
 </div>
 
+<!-- Dynamic Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="card p-3 text-center">
-            <h2 class="fw-bold text-primary">1,240</h2>
+            <h2 class="fw-bold text-primary">{{ total_issues }}</h2>
             <p class="text-muted mb-0">Issues Reported</p>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-3 text-center">
-            <h2 class="fw-bold text-primary">63%</h2>
+            <h2 class="fw-bold text-primary">{{ resolved_rate }}%</h2>
             <p class="text-muted mb-0">Resolved Rate</p>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-3 text-center">
-            <h2 class="fw-bold text-primary">48</h2>
-            <p class="text-muted mb-0">Municipalities</p>
+            <h2 class="fw-bold text-primary">{{ total_municipalities }}</h2>
+            <p class="text-muted mb-0">
+                Municipalities
+                <span class="d-block" style="font-size:11px; color:#9ca3af;">
+                    Metro · Sub-metro · Municipal
+                </span>
+            </p>
         </div>
     </div>
 </div>
+
+<!-- Recent Issues -->
+<div class="card p-4 mb-4">
+    <h5 class="fw-bold mb-3">🔥 Recent Issues</h5>
+    {% if recent_issues %}
+        {% for issue in recent_issues %}
+        <div class="d-flex gap-3 py-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="fs-2">
+                {% if issue.category == 'pothole' %}🕳️
+                {% elif issue.category == 'streetlight' %}💡
+                {% elif issue.category == 'drainage' %}🚰
+                {% elif issue.category == 'bridge' %}🌉
+                {% elif issue.category == 'garbage' %}🚮
+                {% elif issue.category == 'water' %}💧
+                {% elif issue.category == 'tree' %}🌳
+                {% else %}⚠️{% endif %}
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">{{ issue.title }}</div>
+                <div class="text-muted" style="font-size:12px;">
+                    📍 {{ issue.location_name|default:"Location not specified" }}
+                    {% if issue.municipality %} · {{ issue.municipality.name }}{% endif %}
+                    · {{ issue.created_at|timesince }} ago
+                </div>
+                <div class="mt-1">
+                    {% if issue.severity == 'critical' %}
+                        <span class="badge" style="background:#fee2e2;color:#991b1b;">Critical</span>
+                    {% endif %}
+                    {% if issue.status == 'open' %}
+                        <span class="badge" style="background:#fef3c7;color:#92400e;">Open</span>
+                    {% elif issue.status == 'assigned' %}
+                        <span class="badge" style="background:#dbeafe;color:#1e40af;">Assigned</span>
+                    {% elif issue.status == 'in_progress' %}
+                        <span class="badge" style="background:#e0e7ff;color:#3730a3;">In Progress</span>
+                    {% elif issue.status == 'resolved' %}
+                        <span class="badge" style="background:#d1fae5;color:#065f46;">✅ Resolved</span>
+                    {% elif issue.status == 'rejected' %}
+                        <span class="badge" style="background:#f3f4f6;color:#6b7280;">Rejected</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-muted py-4">
+            <div style="font-size:2rem;">📭</div>
+            <p class="mt-2">No issues reported yet. Be the first to report one!</p>
+            {% if user.is_authenticated %}
+                <a href="#" class="btn btn-primary btn-sm">Report an Issue</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
 {% endblock %}

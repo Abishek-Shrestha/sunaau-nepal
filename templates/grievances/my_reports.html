@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}My Reports — SunaauNepal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">
+        <i class="bi bi-list-check text-primary"></i> My Reports
+    </h4>
+    <a href="#" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus"></i> New Report
+    </a>
+</div>
+
+{% if issues %}
+    {% for issue in issues %}
+    <div class="card mb-3 p-4">
+
+        <!-- Issue Header -->
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <span class="fs-4 me-2">
+                    {% if issue.category == 'pothole' %}🕳️
+                    {% elif issue.category == 'streetlight' %}💡
+                    {% elif issue.category == 'drainage' %}🚰
+                    {% elif issue.category == 'bridge' %}🌉
+                    {% elif issue.category == 'garbage' %}🚮
+                    {% elif issue.category == 'water' %}💧
+                    {% elif issue.category == 'tree' %}🌳
+                    {% else %}⚠️{% endif %}
+                </span>
+                <strong>{{ issue.title }}</strong>
+            </div>
+            <div>
+                <span class="badge rounded-pill
+                    {% if issue.severity == 'critical' %}bg-danger
+                    {% elif issue.severity == 'moderate' %}bg-warning text-dark
+                    {% else %}bg-secondary{% endif %}">
+                    {{ issue.get_severity_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Meta Info -->
+        <div class="text-muted mt-2" style="font-size:13px;">
+            <i class="bi bi-geo-alt"></i>
+            {{ issue.location_name|default:"Location not set" }}
+            {% if issue.municipality %} · {{ issue.municipality.name }}{% endif %}
+            {% if issue.ward_number %} · Ward {{ issue.ward_number }}{% endif %}
+            &nbsp;·&nbsp;
+            <i class="bi bi-calendar3"></i> {{ issue.created_at|date:"M d, Y" }}
+            &nbsp;·&nbsp; ID: <code>#{{ issue.id }}</code>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="mt-3">
+            <div class="d-flex justify-content-between mb-1" style="font-size:12px; color:#6b7280;">
+                <span>Submitted</span>
+                <span>Assigned</span>
+                <span>In Progress</span>
+                <span>Resolved</span>
+            </div>
+            <div class="progress" style="height: 8px; border-radius:10px;">
+                <div class="progress-bar bg-primary"
+                    style="width:
+                        {% if issue.status == 'open' %}10%
+                        {% elif issue.status == 'assigned' %}35%
+                        {% elif issue.status == 'in_progress' %}65%
+                        {% elif issue.status == 'resolved' %}100%
+                        {% elif issue.status == 'rejected' %}100%
+                        {% else %}10%{% endif %};">
+                </div>
+            </div>
+            <div class="mt-2" style="font-size:12px;">
+                {% if issue.status == 'open' %}
+                    <span style="color:#92400e;">
+                        <i class="bi bi-hourglass"></i> Awaiting review by municipality
+                    </span>
+                {% elif issue.status == 'assigned' %}
+                    <span style="color:#1e40af;">
+                        <i class="bi bi-person-check"></i> Assigned to a department
+                    </span>
+                {% elif issue.status == 'in_progress' %}
+                    <span style="color:#3730a3;">
+                        <i class="bi bi-tools"></i> Repair work is in progress
+                    </span>
+                {% elif issue.status == 'resolved' %}
+                    <span style="color:#065f46;">
+                        <i class="bi bi-check-circle-fill"></i> Issue resolved
+                        {% if issue.resolved_at %}on {{ issue.resolved_at|date:"M d, Y" }}{% endif %}
+                    </span>
+                {% elif issue.status == 'rejected' %}
+                    <span style="color:#6b7280;">
+                        <i class="bi bi-x-circle"></i> Report was rejected by municipality
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Municipality Updates -->
+        {% if issue.updates.all %}
+        <div class="mt-3 pt-3 border-top">
+            <p class="fw-semibold mb-2" style="font-size:13px;">
+                <i class="bi bi-chat-left-text text-primary"></i> Municipality Updates
+            </p>
+            {% for update in issue.updates.all %}
+                {% if update.note %}
+                <div class="rounded p-2 mb-1" style="background:#eff6ff; font-size:12px; color:#1e40af;">
+                    <i class="bi bi-building"></i>
+                    <strong>{{ update.updated_by.municipality|default:"Municipality" }}:</strong>
+                    {{ update.note }}
+                    <span class="text-muted ms-2">· {{ update.created_at|date:"M d" }}</span>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+
+{% else %}
+    <div class="card p-5 text-center">
+        <div style="font-size:3rem;">📭</div>
+        <h5 class="mt-3">No reports yet</h5>
+        <p class="text-muted">You haven't reported any issues yet.</p>
+        <a href="#" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Report your first issue
+        </a>
+    </div>
+{% endif %}
+
+{% endblock %}
