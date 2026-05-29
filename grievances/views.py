@@ -1,5 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .forms import IssueReportForm
+from django.utils import timezone
 from django.db.models import Count, Q
 from .models import Issue
 from accounts.models import Municipality
@@ -28,8 +31,25 @@ def home_view(request):
 
 
 @login_required
-def municipality_dashboard(request):
-    return render(request, 'grievances/dashboard.html')
+def report_issue(request):
+    if request.method == 'POST':
+        form = IssueReportForm(request.POST, request.FILES)
+        if form.is_valid():
+            issue = form.save(commit=False)
+
+            if request.user.is_authenticated and not form.cleaned_data.get('is_anonymous'):
+                issue.reported_by = request.user
+            
+            issue.save()
+            messages.success(request, '✅ Your report has been submitted successfully! We will notify you of updates.')
+            return redirect('issue_detail', pk=issue.pk)
+    else:
+        form = IssueReportForm(initial={
+            'municipality': request.user.municipality,
+            'ward_number': request.user.ward_number,
+        })
+
+    return render(request, 'grievances/report_issue.html', {'form': form})
 
 
 @login_required
@@ -38,3 +58,17 @@ def my_reports(request):
         reported_by=request.user
     ).order_by('-created_at')
     return render(request, 'grievances/my_reports.html', {'issues': issues})
+
+
+def issue_detail(request, pk):
+    issue = get_object_or_404(Issue, pk=pk)
+    updates = issue.updates.all().order_by('created_at')
+    return render(request, 'grievances/issue_detail.html', {
+        'issue': issue,
+        'updates': updates,
+    })
+
+
+@login_required
+def municipality_dashboard(request):
+    return render(request, 'grievances/dashboard.html')

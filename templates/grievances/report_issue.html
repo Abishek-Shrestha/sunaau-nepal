@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Report an Issue — SunaauNepal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-preview {
+        width: 100%;
+        max-height: 220px;
+        object-fit: cover;
+        border-radius: 10px;
+        display: none;
+        margin-top: 10px;
+    }
+    .upload-box {
+        border: 2px dashed #d1d5db;
+        border-radius: 10px;
+        padding: 28px;
+        text-align: center;
+        cursor: pointer;
+        background: #f9fafb;
+        transition: border-color 0.2s;
+    }
+    .upload-box:hover { border-color: #1e40af; }
+    .gps-box {
+        background: #f0fdf4;
+        border: 1.5px solid #86efac;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #166534;
+    }
+    .gps-box.error {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+    }
+    .severity-btn input[type="radio"] { display: none; }
+    .severity-btn label {
+        padding: 7px 18px;
+        border-radius: 20px;
+        border: 1.5px solid #d1d5db;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .severity-btn input[type="radio"]:checked + label {
+        background: #1e40af;
+        color: white;
+        border-color: #1e40af;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+    <div class="mb-3">
+        <h4 class="fw-bold"><i class="bi bi-exclamation-triangle text-primary"></i> Report an Issue</h4>
+        <p class="text-muted">Fill in the details below. Your report will be sent to the relevant municipality.</p>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="reportForm">
+        {% csrf_token %}
+
+        <!-- Hidden GPS fields -->
+        {{ form.latitude }}
+        {{ form.longitude }}
+
+        <!-- Category -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3">📂 Issue Category</h6>
+            {{ form.category|as_crispy_field }}
+        </div>
+
+        <!-- Details -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3">📝 Issue Details</h6>
+            {{ form.title|as_crispy_field }}
+            {{ form.description|as_crispy_field }}
+
+            <!-- Severity -->
+            <label class="form-label fw-semibold">Severity Level</label>
+            <div class="d-flex gap-2 mb-3">
+                <div class="severity-btn">
+                    <input type="radio" name="severity" id="minor" value="minor" checked>
+                    <label for="minor">🟡 Minor</label>
+                </div>
+                <div class="severity-btn">
+                    <input type="radio" name="severity" id="moderate" value="moderate">
+                    <label for="moderate">🟠 Moderate</label>
+                </div>
+                <div class="severity-btn">
+                    <input type="radio" name="severity" id="critical" value="critical">
+                    <label for="critical">🔴 Critical</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo Upload -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3">📷 Upload Photo</h6>
+            <div class="upload-box" onclick="document.getElementById('photoInput').click()">
+                <div style="font-size:2.5rem;">📷</div>
+                <p class="text-muted mb-0 mt-2">Click to take a photo or choose from gallery</p>
+                <p class="text-muted" style="font-size:12px;">JPG, PNG up to 10MB</p>
+            </div>
+            <input type="file" id="photoInput" name="photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+            <img id="photoPreview" class="upload-preview" alt="Photo preview">
+        </div>
+
+        <!-- Location -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3">📍 Location</h6>
+
+            <!-- GPS Detection -->
+            <div class="gps-box mb-3" id="gpsBox">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span id="gpsText">Click to detect your GPS location automatically</span>
+                <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="getGPS()" id="gpsBtn">
+                    Detect GPS
+                </button>
+            </div>
+
+            {{ form.location_name|as_crispy_field }}
+
+            <div class="row">
+                <div class="col-md-8">{{ form.municipality|as_crispy_field }}</div>
+                <div class="col-md-4">{{ form.ward_number|as_crispy_field }}</div>
+            </div>
+        </div>
+
+        <!-- Anonymous Option -->
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-2">🔒 Privacy</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_anonymous" id="isAnonymous">
+                <label class="form-check-label" for="isAnonymous">
+                    Submit anonymously <span class="text-muted">(your name won't be shown publicly)</span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold fs-5">
+            <i class="bi bi-send-fill"></i> Submit Report
+        </button>
+        <p class="text-center text-muted mt-2" style="font-size:12px;">
+            Your report will be reviewed and forwarded to the relevant municipality
+        </p>
+
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Photo preview
+    function previewPhoto(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('photoPreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // GPS detection
+    function getGPS() {
+        const gpsBox = document.getElementById('gpsBox');
+        const gpsText = document.getElementById('gpsText');
+        const gpsBtn = document.getElementById('gpsBtn');
+
+        gpsBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Detecting...';
+        gpsBtn.disabled = true;
+
+        if (!navigator.geolocation) {
+            gpsText.textContent = 'GPS not supported by your browser.';
+            gpsBox.classList.add('error');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude.toFixed(6);
+                const lng = position.coords.longitude.toFixed(6);
+
+                document.getElementById('id_latitude').value = lat;
+                document.getElementById('id_longitude').value = lng;
+
+                gpsText.textContent = `📍 ${lat}° N, ${lng}° E — Location captured`;
+                gpsBtn.innerHTML = '✅ Captured';
+                gpsBtn.classList.remove('btn-outline-success');
+                gpsBtn.classList.add('btn-success');
+            },
+            function(error) {
+                gpsBox.classList.add('error');
+                gpsText.textContent = 'Could not get GPS. Please type your location manually.';
+                gpsBtn.innerHTML = 'Try Again';
+                gpsBtn.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+</script>
+{% endblock %}
