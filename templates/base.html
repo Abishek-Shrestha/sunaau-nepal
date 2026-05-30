@@ -1,3 +1,4 @@
+{% load notification_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +38,25 @@
                 </li>
             </ul>
             <ul class="navbar-nav">
+                <!-- Inside navbar, replace the entire authenticated block with this -->
                 {% if user.is_authenticated %}
+
+                <!-- Notification Bell -->
+                <li class="nav-item me-1">
+                    <a class="nav-link position-relative" href="{% url 'notifications' %}">
+                        <i class="bi bi-bell fs-5"></i>
+                        {% unread_count user as count %}
+                        {% if count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                              style="font-size:10px;">
+                            {{ count }}
+                        </span>
+                        {% endif %}
+                    </a>
+                </li>
+
+    <!-- User Dropdown (your existing code) -->
+   
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ user.username }}

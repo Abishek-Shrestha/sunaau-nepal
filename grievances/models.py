@@ -28,6 +28,7 @@ class Issue(models.Model):
         ('moderate', 'Moderate'),
         ('critical', 'Critical'),
     )
+    
 
     # Core fields
     title = models.CharField(max_length=200)
@@ -94,3 +95,35 @@ class IssueUpdate(models.Model):
 
     def __str__(self):
         return f"{self.issue.title} → {self.new_status}"
+    
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('new_issue', 'New Issue Reported'),
+        ('status_update', 'Status Updated'),
+        ('assigned', 'Issue Assigned'),
+    )
+
+    recipient = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    issue = models.ForeignKey(
+        Issue,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        null=True,
+        blank=True
+    )
+    notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.recipient.username} — {self.notification_type}"
+
+    class Meta:
+        ordering = ['-created_at']
+    
+    

@@ -5,6 +5,7 @@ from .forms import IssueReportForm
 from django.utils import timezone
 from django.db.models import Count, Q
 from .models import Issue
+from .models import Issue, Notification
 from accounts.models import Municipality
 
 
@@ -72,3 +73,18 @@ def issue_detail(request, pk):
 @login_required
 def municipality_dashboard(request):
     return render(request, 'grievances/dashboard.html')
+
+@login_required
+def notifications_view(request):
+    notifs = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+    notifs.filter(is_read=False).update(is_read=True)  # Mark all as read when viewing  
+    return render(request, 'grievances/notifications.html', {'notifications': notifs})
+
+@login_required
+def mark_notification_read(request, pk):
+    notif = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notif.is_read = True
+    notif.save()
+    if notif.issue:
+        return redirect('issue_detail', pk=notif.issue.pk)
+    return redirect('notifications')
