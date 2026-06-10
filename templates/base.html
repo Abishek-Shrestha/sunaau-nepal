@@ -1,4 +1,3 @@
-{% if user.is_authenticated %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,6 +28,8 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
+
+            <!-- Left side links -->
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'home' %}">Home</a>
@@ -37,23 +38,25 @@
                     <a class="nav-link" href="#">Issue Map</a>
                 </li>
             </ul>
-            <ul class="navbar-nav">
-                <!-- Inside navbar, replace the entire authenticated block with this -->
-            <!-- Notification Bell -->
-            <li class="nav-item me-1">
-            <a class="nav-link position-relative" href="{% url 'notifications' %}">
-            <i class="bi bi-bell fs-5"></i>
-            {% if unread_notification_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                  style="font-size:10px; min-width:18px;">
-                {{ unread_notification_count }}
-            </span>
-            {% endif %}
-        </a>
-    </li>
 
-    <!-- User Dropdown (your existing code) -->
-   
+            <!-- Right side links -->
+            <ul class="navbar-nav">
+                {% if user.is_authenticated %}
+
+                    <!-- Notification Bell -->
+                    <li class="nav-item me-1">
+                        <a class="nav-link position-relative" href="{% url 'notifications' %}">
+                            <i class="bi bi-bell fs-5"></i>
+                            {% if unread_notification_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                  style="font-size:10px; min-width:18px;">
+                                {{ unread_notification_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    <!-- User Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ user.username }}
@@ -62,12 +65,12 @@
                             <li><a class="dropdown-item" href="{% url 'profile' %}">
                                 <i class="bi bi-person"></i> Profile
                             </a></li>
+                            <li><a class="dropdown-item" href="{% url 'my_reports' %}">
+                                <i class="bi bi-list-check"></i> My Reports
+                            </a></li>
                             {% if user.role == 'officer' or user.role == 'admin' %}
                             <li><a class="dropdown-item" href="{% url 'municipality_dashboard' %}">
                                 <i class="bi bi-speedometer2"></i> Dashboard
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'my_reports' %}">
-                                <i class="bi bi-list-check"></i> My Reports
                             </a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
@@ -76,17 +79,23 @@
                             </a></li>
                         </ul>
                     </li>
+
                 {% else %}
+                    <!-- Not logged in -->
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'login' %}">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-primary ms-2" href="{% url 'register' %}">Register</a>
+                        <a class="btn btn-outline-primary ms-2" href="{% url 'register' %}">Register</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="btn btn-primary ms-2" href="{% url 'report_issue' %}">
-                         <i class="bi bi-plus-circle"></i> Report Issue</a>
+                            <i class="bi bi-plus-circle"></i> Report Issue
+                        </a>
                     </li>
                 {% endif %}
             </ul>
+
         </div>
     </div>
 </nav>
