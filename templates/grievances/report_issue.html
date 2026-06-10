@@ -4,6 +4,7 @@
 {% block title %}Report an Issue — SunaauNepal{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
     .upload-preview {
         width: 100%;
@@ -23,19 +24,6 @@
         transition: border-color 0.2s;
     }
     .upload-box:hover { border-color: #1e40af; }
-    .gps-box {
-        background: #f0fdf4;
-        border: 1.5px solid #86efac;
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 13px;
-        color: #166534;
-    }
-    .gps-box.error {
-        background: #fef2f2;
-        border-color: #fca5a5;
-        color: #991b1b;
-    }
     .severity-btn input[type="radio"] { display: none; }
     .severity-btn label {
         padding: 7px 18px;
@@ -114,24 +102,69 @@
 
         <!-- Location -->
         <div class="card p-4 mb-3">
-            <h6 class="fw-bold mb-3">📍 Location</h6>
+        <h6 class="fw-bold mb-3">📍 Location</h6>
 
-            <!-- GPS Detection -->
-            <div class="gps-box mb-3" id="gpsBox">
-                <i class="bi bi-geo-alt-fill"></i>
-                <span id="gpsText">Click to detect your GPS location automatically</span>
-                <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="getGPS()" id="gpsBtn">
-                    Detect GPS
-                </button>
-            </div>
+        <!-- Location Method Tabs -->
+        <div class="d-flex gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-primary" id="tabMap" onclick="switchTab('map')">
+            🗺️ Pin on Map
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="tabGPS" onclick="switchTab('gps')">
+            📡 Use My GPS
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="tabManual" onclick="switchTab('manual')">
+            ✏️ Type Manually
+        </button>
+    </div>
 
-            {{ form.location_name|as_crispy_field }}
-
-            <div class="row">
-                <div class="col-md-8">{{ form.municipality|as_crispy_field }}</div>
-                <div class="col-md-4">{{ form.ward_number|as_crispy_field }}</div>
-            </div>
+    <!-- Tab: Pin on Map -->
+    <div id="methodMap">
+        <p class="text-muted mb-2" style="font-size:13px;">
+            <i class="bi bi-info-circle"></i>
+            Click anywhere on the map to drop a pin at the exact issue location.
+        </p>
+        <div id="locationMap" style="height:260px; border-radius:10px; border:1.5px solid #d1d5db;"></div>
+        <div id="mapPinInfo" class="mt-2 p-2 rounded" style="background:#f0fdf4; font-size:12px; color:#166534; display:none;">
+            <i class="bi bi-check-circle-fill"></i>
+            <span id="mapPinText"></span>
         </div>
+    </div>
+
+    <!-- Tab: GPS -->
+    <div id="methodGPS" style="display:none;">
+        <p class="text-muted mb-2" style="font-size:13px;">
+            <i class="bi bi-info-circle"></i>
+            Only use this if you are <strong>physically at the location</strong> right now.
+        </p>
+        <div class="p-3 rounded mb-2" id="gpsBox"
+             style="background:#f0fdf4; border:1.5px solid #86efac; font-size:13px; color:#166534;">
+            <i class="bi bi-geo-alt-fill"></i>
+            <span id="gpsText">Press the button to capture your current GPS location.</span>
+        </div>
+        <button type="button" class="btn btn-success btn-sm" onclick="getGPS()" id="gpsBtn">
+            <i class="bi bi-crosshair"></i> Detect My GPS
+        </button>
+    </div>
+
+    <!-- Tab: Manual -->
+    <div id="methodManual" style="display:none;">
+        <p class="text-muted mb-2" style="font-size:13px;">
+            <i class="bi bi-info-circle"></i>
+            Describe the location clearly using a nearby landmark.
+        </p>
+    </div>
+
+    <!-- Location name input — always visible -->
+    <div class="mt-3">
+        {{ form.location_name|as_crispy_field }}
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">{{ form.municipality|as_crispy_field }}</div>
+        <div class="col-md-4">{{ form.ward_number|as_crispy_field }}</div>
+    </div>
+
+
 
         <!-- Anonymous Option -->
         <div class="card p-4 mb-3">
@@ -157,8 +190,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Photo preview
+    // ── Photo preview ──────────────────────────────────
     function previewPhoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -171,7 +205,66 @@
         }
     }
 
-    // GPS detection
+    // ── Location Tab Switcher ──────────────────────────
+    function switchTab(tab) {
+        // Hide all methods
+        document.getElementById('methodMap').style.display = 'none';
+        document.getElementById('methodGPS').style.display = 'none';
+        document.getElementById('methodManual').style.display = 'none';
+
+        // Reset all tab buttons
+        document.getElementById('tabMap').className = 'btn btn-sm btn-outline-secondary';
+        document.getElementById('tabGPS').className = 'btn btn-sm btn-outline-secondary';
+        document.getElementById('tabManual').className = 'btn btn-sm btn-outline-secondary';
+
+        // Show selected
+        document.getElementById('method' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+        document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).className = 'btn btn-sm btn-primary';
+
+        // Init map when that tab opens
+        if (tab === 'map' && !mapInitialized) {
+            initMap();
+        }
+    }
+
+    // ── Leaflet Mini Map ───────────────────────────────
+    let map, marker, mapInitialized = false;
+
+    function initMap() {
+        // Default center: Kathmandu
+        map = L.map('locationMap').setView([27.7172, 85.3240], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Click to place pin
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+
+            // Remove old marker
+            if (marker) map.removeLayer(marker);
+
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup('📍 Issue location pinned here')
+                .openPopup();
+
+            // Save to hidden fields
+            document.getElementById('id_latitude').value = lat;
+            document.getElementById('id_longitude').value = lng;
+
+            // Show confirmation
+            const info = document.getElementById('mapPinInfo');
+            info.style.display = 'block';
+            document.getElementById('mapPinText').textContent =
+                `Pin placed at ${lat}° N, ${lng}° E — move the pin if needed`;
+        });
+
+        mapInitialized = true;
+    }
+
+    // ── GPS Detection ──────────────────────────────────
     function getGPS() {
         const gpsBox = document.getElementById('gpsBox');
         const gpsText = document.getElementById('gpsText');
@@ -182,7 +275,9 @@
 
         if (!navigator.geolocation) {
             gpsText.textContent = 'GPS not supported by your browser.';
-            gpsBox.classList.add('error');
+            gpsBox.style.background = '#fef2f2';
+            gpsBox.style.borderColor = '#fca5a5';
+            gpsBox.style.color = '#991b1b';
             return;
         }
 
@@ -194,19 +289,26 @@
                 document.getElementById('id_latitude').value = lat;
                 document.getElementById('id_longitude').value = lng;
 
-                gpsText.textContent = `📍 ${lat}° N, ${lng}° E — Location captured`;
+                gpsText.textContent = `✅ ${lat}° N, ${lng}° E — GPS captured successfully`;
                 gpsBtn.innerHTML = '✅ Captured';
-                gpsBtn.classList.remove('btn-outline-success');
-                gpsBtn.classList.add('btn-success');
+                gpsBtn.classList.remove('btn-success');
+                gpsBtn.classList.add('btn-outline-success');
             },
             function(error) {
-                gpsBox.classList.add('error');
-                gpsText.textContent = 'Could not get GPS. Please type your location manually.';
-                gpsBtn.innerHTML = 'Try Again';
+                gpsBox.style.background = '#fef2f2';
+                gpsBox.style.borderColor = '#fca5a5';
+                gpsBox.style.color = '#991b1b';
+                gpsText.textContent = 'Could not get GPS. Try pinning on the map or type manually.';
+                gpsBtn.innerHTML = '<i class="bi bi-crosshair"></i> Try Again';
                 gpsBtn.disabled = false;
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
     }
+
+    // ── Initialize map tab on page load ───────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+    });
 </script>
 {% endblock %}
