@@ -7,7 +7,8 @@ from django.db.models import Count, Q
 from .models import Issue
 from .models import Issue, Notification
 from accounts.models import Municipality
-
+import json
+from django.core.serializers.base import SerializationError
 
 def home_view(request):
     total_issues = Issue.objects.count()
@@ -88,3 +89,39 @@ def mark_notification_read(request, pk):
     if notif.issue:
         return redirect('issue_detail', pk=notif.issue.pk)
     return redirect('notifications')
+
+def issue_map(request):
+    # Only get issues that have GPS coordinates
+    issues = Issue.objects.filter(
+        latitude__isnull=False,
+        longitude__isnull=False
+    ).select_related('municipality')
+
+    # Build a JSON list for Leaflet
+    issues_data = []
+    for issue in issues:
+        issues_data.append({
+            'id': issue.id,
+            'title': issue.title,
+            'category': issue.category,
+            'category_display': issue.get_category_display(),
+            'severity': issue.severity,
+            'status': issue.status,
+            'status_display': issue.get_status_display(),
+            'lat': float(issue.latitude),
+            'lng': float(issue.longitude),
+            'location': issue.location_name or '',
+            'municipality': issue.municipality.name if issue.municipality else '',
+            'ward': issue.ward_number or '',
+            'photo': issue.photo.url if issue.photo else '',
+            'created_at': issue.created_at.strftime('%b %d, %Y'),
+            'url': f'/issue/{issue.id}/',
+        })
+
+    municipalities = Municipality.objects.all().order_by('name')
+
+    return render(request, 'grievances/map.html', {
+        'issues_json': json.dumps(issues_data),
+        'municipalities': municipalities,
+        'total_count': issues.count(),
+    })

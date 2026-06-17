@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}Issue Map — SunaauNepal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    #map {
+        height: 520px;
+        border-radius: 12px;
+        border: 1.5px solid #e5e7eb;
+        z-index: 0;
+    }
+    .filter-bar {
+        background: white;
+        border-radius: 12px;
+        padding: 14px 18px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+        margin-bottom: 14px;
+    }
+    .map-legend {
+        background: white;
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+        margin-top: 12px;
+    }
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .issue-popup img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 6px;
+        margin-bottom: 6px;
+    }
+    .stat-pill {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">
+        <i class="bi bi-map text-primary"></i> Issue Map
+    </h4>
+    <span class="text-muted" style="font-size:13px;">
+        Showing <strong id="visibleCount">{{ total_count }}</strong> issues
+    </span>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="row g-2">
+        <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm" id="filterCategory" onchange="applyFilters()">
+                <option value="">All Categories</option>
+                <option value="pothole">🕳️ Pothole</option>
+                <option value="streetlight">💡 Streetlight</option>
+                <option value="drainage">🚰 Drainage</option>
+                <option value="bridge">🌉 Bridge</option>
+                <option value="garbage">🚮 Garbage</option>
+                <option value="water">💧 Water</option>
+                <option value="tree">🌳 Fallen Tree</option>
+                <option value="other">⚠️ Other</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm" id="filterStatus" onchange="applyFilters()">
+                <option value="">All Status</option>
+                <option value="open">Open</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm" id="filterSeverity" onchange="applyFilters()">
+                <option value="">All Severity</option>
+                <option value="critical">🔴 Critical</option>
+                <option value="moderate">🟠 Moderate</option>
+                <option value="minor">🟡 Minor</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm" id="filterMunicipality" onchange="applyFilters()">
+                <option value="">All Municipalities</option>
+                {% for mun in municipalities %}
+                <option value="{{ mun.name }}">{{ mun.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Legend -->
+<div class="map-legend">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <strong style="font-size:13px;">By Category</strong><br>
+            <span class="mt-1 d-inline-block">
+                <span class="legend-dot" style="background:#ef4444;"></span>Pothole
+                <span class="legend-dot ms-2" style="background:#f59e0b;"></span>Streetlight
+                <span class="legend-dot ms-2" style="background:#3b82f6;"></span>Drainage
+                <span class="legend-dot ms-2" style="background:#8b5cf6;"></span>Road/Bridge
+                <span class="legend-dot ms-2" style="background:#06b6d4;"></span>Water
+                <span class="legend-dot ms-2" style="background:#22c55e;"></span>Other
+            </span>
+        </div>
+        <div class="col-12 col-md-6">
+            <strong style="font-size:13px;">By Status</strong><br>
+            <span class="mt-1 d-inline-block" style="font-size:12px;">
+                ⭕ Open &nbsp; 🔵 Assigned &nbsp; 🔧 In Progress &nbsp; ✅ Resolved
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Stats below map -->
+<div class="mt-3">
+    <span class="stat-pill" style="background:#fef3c7; color:#92400e;">
+        ⏳ Open: <span id="countOpen">0</span>
+    </span>
+    <span class="stat-pill" style="background:#dbeafe; color:#1e40af;">
+        🔵 Assigned: <span id="countAssigned">0</span>
+    </span>
+    <span class="stat-pill" style="background:#e0e7ff; color:#3730a3;">
+        🔧 In Progress: <span id="countInProgress">0</span>
+    </span>
+    <span class="stat-pill" style="background:#d1fae5; color:#065f46;">
+        ✅ Resolved: <span id="countResolved">0</span>
+    </span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // ── All issues from Django ─────────────────────────
+    const ALL_ISSUES = {{ issues_json|safe }};
+
+    // ── Category colors ────────────────────────────────
+    const CATEGORY_COLORS = {
+        'pothole':     '#ef4444',
+        'streetlight': '#f59e0b',
+        'drainage':    '#3b82f6',
+        'bridge':      '#8b5cf6',
+        'garbage':     '#f97316',
+        'water':       '#06b6d4',
+        'tree':        '#22c55e',
+        'other':       '#6b7280',
+    };
+
+    const CATEGORY_ICONS = {
+        'pothole': '🕳️', 'streetlight': '💡', 'drainage': '🚰',
+        'bridge': '🌉', 'garbage': '🚮', 'water': '💧',
+        'tree': '🌳', 'other': '⚠️'
+    };
+
+    const STATUS_ICONS = {
+        'open': '⭕', 'assigned': '🔵',
+        'in_progress': '🔧', 'resolved': '✅', 'rejected': '❌'
+    };
+
+    // ── Initialize map centered on Nepal ──────────────
+    const map = L.map('map').setView([28.3949, 84.1240], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
+    }).addTo(map);
+
+    let markers = [];
+
+    // ── Create custom pin icon ─────────────────────────
+    function createIcon(issue) {
+        const color = CATEGORY_COLORS[issue.category] || '#6b7280';
+        const emoji = CATEGORY_ICONS[issue.category] || '⚠️';
+        return L.divIcon({
+            className: '',
+            html: `<div style="
+                background:${color};
+                width:32px; height:32px;
+                border-radius:50% 50% 50% 0;
+                transform:rotate(-45deg);
+                border:2px solid white;
+                box-shadow:0 2px 6px rgba(0,0,0,0.3);
+                display:flex; align-items:center; justify-content:center;">
+                <span style="transform:rotate(45deg); font-size:14px;">${emoji}</span>
+            </div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32],
+        });
+    }
+
+    // ── Build popup content ────────────────────────────
+    function buildPopup(issue) {
+        return `
+            <div class="issue-popup" style="min-width:200px; max-width:240px;">
+                ${issue.photo ? `<img src="${issue.photo}" alt="photo">` : ''}
+                <strong style="font-size:13px;">${issue.title}</strong><br>
+                <span style="font-size:11px; color:#6b7280;">
+                    ${CATEGORY_ICONS[issue.category]} ${issue.category_display}<br>
+                    📍 ${issue.location || issue.municipality || 'Nepal'}
+                    ${issue.ward ? ` · Ward ${issue.ward}` : ''}<br>
+                    ${STATUS_ICONS[issue.status]} ${issue.status_display}
+                    · ${issue.created_at}
+                </span>
+                <br>
+                <a href="${issue.url}"
+                   style="display:inline-block; margin-top:6px; font-size:12px;
+                          background:#1e40af; color:white; padding:4px 10px;
+                          border-radius:5px; text-decoration:none;">
+                    View Details →
+                </a>
+            </div>`;
+    }
+
+    // ── Render markers ─────────────────────────────────
+    function renderMarkers(issues) {
+        // Clear existing markers
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+
+        let counts = { open: 0, assigned: 0, in_progress: 0, resolved: 0 };
+
+        issues.forEach(issue => {
+            const marker = L.marker([issue.lat, issue.lng], {
+                icon: createIcon(issue)
+            }).addTo(map).bindPopup(buildPopup(issue), { maxWidth: 260 });
+            markers.push(marker);
+            if (counts[issue.status] !== undefined) counts[issue.status]++;
+        });
+
+        // Update visible count
+        document.getElementById('visibleCount').textContent = issues.length;
+        document.getElementById('countOpen').textContent = counts.open;
+        document.getElementById('countAssigned').textContent = counts.assigned;
+        document.getElementById('countInProgress').textContent = counts.in_progress;
+        document.getElementById('countResolved').textContent = counts.resolved;
+    }
+
+    // ── Apply filters ──────────────────────────────────
+    function applyFilters() {
+        const category     = document.getElementById('filterCategory').value;
+        const status       = document.getElementById('filterStatus').value;
+        const severity     = document.getElementById('filterSeverity').value;
+        const municipality = document.getElementById('filterMunicipality').value;
+
+        const filtered = ALL_ISSUES.filter(issue => {
+            if (category     && issue.category     !== category)     return false;
+            if (status       && issue.status       !== status)       return false;
+            if (severity     && issue.severity     !== severity)     return false;
+            if (municipality && issue.municipality !== municipality) return false;
+            return true;
+        });
+
+        renderMarkers(filtered);
+    }
+
+    // ── Initial render ─────────────────────────────────
+    renderMarkers(ALL_ISSUES);
+
+    // If there are issues, fit map to show them all
+    if (ALL_ISSUES.length > 0) {
+        const latlngs = ALL_ISSUES.map(i => [i.lat, i.lng]);
+        map.fitBounds(latlngs, { padding: [30, 30], maxZoom: 14 });
+    }
+</script>
+{% endblock %}

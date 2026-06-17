@@ -11,4 +11,5 @@ urlpatterns = [
     path('my-reports/', views.my_reports, name='my_reports'),
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/<int:pk>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('map/', views.issue_map, name='issue_map'),
 ]
