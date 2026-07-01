@@ -21,4 +21,6 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ['recipient', 'notification_type', 'message', 'is_read', 'created_at']
     list_filter = ['is_read', 'notification_type']
     list_editable = ['is_read']
+
+
     
